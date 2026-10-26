@@ -45,6 +45,7 @@ import com.qlangtech.tis.plugin.annotation.FormFieldType;
 import com.qlangtech.tis.plugin.annotation.Validator;
 import com.qlangtech.tis.plugin.datax.common.AutoCreateTable;
 import com.qlangtech.tis.plugin.datax.common.AutoCreateTable.BasicDescriptor;
+import com.qlangtech.tis.plugin.datax.SelectedTab;
 import com.qlangtech.tis.plugin.datax.transformer.RecordTransformerRules;
 import com.qlangtech.tis.plugin.ds.IInitWriterTableExecutor;
 import com.qlangtech.tis.plugin.ds.ISelectedTab;
@@ -56,6 +57,7 @@ import com.qlangtech.tis.plugin.iceberg.datax.writemode.WriteMode.IcebergTableWr
 import com.qlangtech.tis.plugin.iceberg.format.IcebergFileFormat;
 import com.qlangtech.tis.plugin.iceberg.utils.IcebergSnapshot;
 import com.qlangtech.tis.plugin.iceberg.utils.IcebergUtils;
+import com.qlangtech.tis.plugins.incr.flink.cdc.pipeline.ICDCPipelineTableOptionsCreator;
 import com.qlangtech.tis.runtime.module.misc.IFieldErrorHandler;
 import com.qlangtech.tis.sql.parser.tuple.creator.EntityName;
 import org.apache.commons.collections.CollectionUtils;
@@ -74,6 +76,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -86,7 +89,8 @@ import java.util.stream.Collectors;
  */
 @Public
 public class DataxIcebergWriter extends DataxWriter implements IcebergTablePropsSetter,
-        KeyedPluginStore.IPluginKeyAware, IDataXBatchPost, IInitWriterTableExecutor {
+        KeyedPluginStore.IPluginKeyAware, IDataXBatchPost, IInitWriterTableExecutor,
+        ICDCPipelineTableOptionsCreator {
 
     // ============ 核心配置 ============
 
@@ -142,6 +146,25 @@ public class DataxIcebergWriter extends DataxWriter implements IcebergTableProps
     @Override
     public void startScanDependency() {
         this.catalog.startScanDependency();
+    }
+
+    /**
+     * 增量（flink-cdc pipeline）建表时下发给 sink 的表属性。
+     * <p>
+     * 这些属性会随 {@code CreateTableEvent} 的 Schema 一路传到 Iceberg 的
+     * {@code Catalog#createTable(..., properties)}，因此文件格式、压缩编码与目标文件大小
+     * 都与全量写入保持同一份配置来源（{@link #setTableProperties}）。
+     * <p>
+     * 分区不走这里：Iceberg 的分区规格必须基于建表 schema 构建，无法用表属性表达，
+     * 由 sink 端按 {@code IcebergSelectedTab#partitionSpec} 生成（见 TimePartition）。
+     */
+    @Override
+    public Function<SelectedTab, Map<String, String>> createTabOpts() {
+        return (tab) -> {
+            Map<String, String> tableProps = Maps.newHashMap();
+            this.setTableProperties(tableProps);
+            return tableProps;
+        };
     }
 
     public static String getDftTemplate() {

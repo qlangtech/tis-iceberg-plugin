@@ -1,236 +1,56 @@
 package com.qlangtech.tis.plugins.incr.flink.pipeline.iceberg.sink;
 
+import com.google.common.collect.Sets;
+import com.qlangtech.plugins.incr.flink.cdc.FlinkCol;
+import com.qlangtech.tis.async.message.client.consumer.IFlinkColCreator;
+import com.qlangtech.tis.compiler.incr.ICompileAndPackage;
+import com.qlangtech.tis.compiler.streamcode.CompileAndPackage;
+import com.qlangtech.tis.datax.IDataxProcessor;
 import com.qlangtech.tis.extension.TISExtension;
-import com.qlangtech.tis.plugin.annotation.FormField;
-import com.qlangtech.tis.plugin.annotation.Validator;
-import com.qlangtech.tis.plugin.iceberg.catalog.IcebergCatalog;
-import com.qlangtech.tis.plugin.iceberg.format.IcebergFileFormat;
-import com.qlangtech.tis.plugins.incr.flink.cdc.FlinkCol;
-import com.qlangtech.tis.plugins.incr.flink.pipeline.sink.PipelineFlinkCDCSinkFactory;
-import com.qlangtech.tis.realtime.BasicTISSinkFactory;
+import com.qlangtech.tis.plugin.IEndTypeGetter;
+import com.qlangtech.tis.plugin.ds.ISelectedTab;
+import com.qlangtech.tis.plugin.iceberg.datax.DataxIcebergWriter;
+import com.qlangtech.tis.plugin.incr.IncrStreamFactory;
+import com.qlangtech.tis.plugins.incr.flink.cdc.pipeline.PipelineFlinkCDCSinkFactory;
 import com.qlangtech.tis.realtime.TabSinkFunc;
-import com.qlangtech.tis.realtime.dto.DTOStream;
-import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.streaming.api.datastream.DataStream;
-import org.apache.flink.streaming.api.datastream.DataStreamSink;
-import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
-import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
-import org.apache.flink.table.data.RowData;
-import org.apache.iceberg.Schema;
-import org.apache.iceberg.Table;
-import org.apache.iceberg.TableProperties;
-import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.flink.FlinkSchemaUtil;
-import org.apache.iceberg.flink.sink.FlinkSink;
-import org.apache.iceberg.types.Types;
+import org.apache.flink.cdc.common.event.Event;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 
 /**
- * Iceberg Pipeline Sink Factory
- * 实现Flink CDC到Iceberg的实时数据同步
+ * Iceberg 实时增量写入（基于 flink-cdc pipeline sink）。
+ * <p>
+ * 对应实现见 {@code flink-cdc-pipeline-connector-iceberg-tis}（TIS 定制的 flink-cdc Iceberg
+ * connector）：表结构、分区与提交都由该连接器负责，本类只负责把 TIS 侧的 writer 配置
+ * 翻译成 connector 需要的 catalog / table 选项。
+ * <p>
+ * 字段全部复用 {@link DataxIcebergWriter}：全量与增量对同一张表的格式、压缩、目标文件大小
+ * 必须一致，两侧各配一份迟早漂移。因此本插件不声明自己的 catalog/fileFormat 字段。
+ *
+ * @author 百岁（baisui@qlangtech.com）
+ * @date 2026/10/26
  */
-public class IcebergPipelineSinkFactory extends PipelineFlinkCDCSinkFactory {
+public class IcebergPipelineSinkFactory extends PipelineFlinkCDCSinkFactory<DataxIcebergWriter> {
 
-    @FormField(ordinal = 1, validate = {Validator.require})
-    public IcebergCatalog catalog;
-
-    /**
-     * 文件格式（多态）。压缩编码与各格式专属的写入参数都在具体子类里，
-     * 与 DataX 侧 {@code DataxIcebergWriter.fileFormat} 共用同一组实现
-     */
-    @FormField(ordinal = 2, validate = {Validator.require})
-    public IcebergFileFormat fileFormat;
-
-    @FormField(ordinal = 3)
-    public Long targetFileSizeBytes = 134217728L;  // 128MB
-
-    @FormField(ordinal = 4)
-    public Integer parallelism = 1;  // 写入并行度
-
-    @FormField(ordinal = 5, advance = true)
-    public Boolean enableUpsert = false;  // 是否启用upsert模式
-
-    @FormField(ordinal = 6, advance = true)
-    public String equalityFieldColumns;  // 主键字段，用于upsert
-
-    @FormField(ordinal = 7, advance = true)
-    public Integer checkpointInterval = 60000;  // checkpoint间隔（毫秒）
-
-    @FormField(ordinal = 8, advance = true)
-    public Boolean enableSchemaEvolution = true;  // 是否启用Schema演化
-
-    /**
-     * 汇总本插件要下发给 Iceberg 的表属性：建表属性与 Sink 写入属性共用这一份
-     */
-    private Map<String, String> createTableProperties() {
-        Map<String, String> properties = new HashMap<>();
-        Objects.requireNonNull(this.fileFormat, "fileFormat can not be null").setTableProperties(properties);
-        if (this.targetFileSizeBytes != null) {
-            properties.put(TableProperties.WRITE_TARGET_FILE_SIZE_BYTES, String.valueOf(this.targetFileSizeBytes));
-        }
-        return properties;
+    @Override
+    public final ICompileAndPackage getCompileAndPackageManager() {
+        return new CompileAndPackage(Sets.newHashSet(this.getClass()));
     }
 
     @Override
-    protected BasicTISSinkFactory<?> createSinkFactory() {
-        return new IcebergSinkFactory(this);
+    protected TabSinkFunc<?, ?, Event> createPipelineEventSinkFunc(
+            IDataxProcessor dataxProcessor, DataxIcebergWriter writer, List<ISelectedTab> tabs,
+            IFlinkColCreator<FlinkCol> sourceFlinkColCreator, IncrStreamFactory streamFactory) {
+        return new IcebergPipelineEventSinkFunc(dataxProcessor, this, writer.catalog.getDBName(), tabs,
+                sourceFlinkColCreator, null, streamFactory.getParallelism());
     }
 
-    /**
-     * Iceberg Sink Factory实现
-     */
-    private static class IcebergSinkFactory extends BasicTISSinkFactory<RowData> {
-
-        private final IcebergPipelineSinkFactory factory;
-
-        public IcebergSinkFactory(IcebergPipelineSinkFactory factory) {
-            this.factory = factory;
-        }
+    @TISExtension
+    public static class DftDesc extends BasicPipelineSinkDescriptor {
 
         @Override
-        public DataStreamSink<RowData> createSinkFunction(DTOStream stream) throws Exception {
-            StreamExecutionEnvironment env = stream.getExecutionEnvironment();
-
-            // 设置checkpoint间隔
-            if (factory.checkpointInterval > 0) {
-                env.enableCheckpointing(factory.checkpointInterval);
-            }
-
-            // 获取Iceberg Catalog
-            Catalog icebergCatalog = factory.catalog.getCatalog();
-            String database = factory.catalog.getDBName().orElse("default");
-            String tableName = stream.getTableName();
-
-            TableIdentifier tableId = TableIdentifier.of(database, tableName);
-
-            // 建表属性与写入属性来自同一份配置，避免两处漂移
-            Map<String, String> tableProperties = factory.createTableProperties();
-
-            // 加载或创建表
-            Table table;
-            if (icebergCatalog.tableExists(tableId)) {
-                table = icebergCatalog.loadTable(tableId);
-            } else {
-                // 创建新表
-                Schema schema = createIcebergSchema(stream);
-                table = icebergCatalog.createTable(tableId, schema, null, tableProperties);
-            }
-
-            // 转换数据流
-            DataStream<RowData> rowDataStream = convertToRowData(stream);
-
-            // 创建Iceberg Sink
-            FlinkSink.Builder builder = FlinkSink.forRowData(rowDataStream)
-                .table(table)
-                .tableLoader(IcebergTableLoader.fromCatalog(icebergCatalog, tableId))
-                .writeParallelism(factory.parallelism);
-
-            // 文件格式、压缩编码、格式专属参数与目标文件大小一次下发
-            builder.setAll(tableProperties);
-
-            // 配置upsert模式
-            if (factory.enableUpsert && factory.equalityFieldColumns != null) {
-                builder.upsert(true);
-                builder.equalityFieldColumns(factory.equalityFieldColumns.split(","));
-            }
-
-            // 添加sink
-            return builder.append();
-        }
-
-        /**
-         * 创建Iceberg Schema
-         */
-        private Schema createIcebergSchema(DTOStream stream) {
-            List<FlinkCol> cols = stream.getColsMeta();
-            Types.NestedField[] fields = new Types.NestedField[cols.size()];
-
-            for (int i = 0; i < cols.size(); i++) {
-                FlinkCol col = cols.get(i);
-                org.apache.iceberg.types.Type icebergType = FlinkSchemaUtil.convert(col.getType());
-
-                if (col.isNullable()) {
-                    fields[i] = Types.NestedField.optional(i + 1, col.getName(), icebergType);
-                } else {
-                    fields[i] = Types.NestedField.required(i + 1, col.getName(), icebergType);
-                }
-            }
-
-            return new Schema(fields);
-        }
-
-        /**
-         * 转换数据流为RowData
-         */
-        private DataStream<RowData> convertToRowData(DTOStream stream) {
-            return stream.getStream()
-                .map(new DTOToRowDataMapper(stream.getColsMeta()));
-        }
-    }
-
-    /**
-     * DTO到RowData的映射器
-     */
-    private static class DTOToRowDataMapper implements MapFunction<Object, RowData> {
-        private final List<FlinkCol> cols;
-
-        public DTOToRowDataMapper(List<FlinkCol> cols) {
-            this.cols = cols;
-        }
-
-        @Override
-        public RowData map(Object value) throws Exception {
-            // 实现DTO到RowData的转换逻辑
-            // 这里需要根据实际的DTO结构进行转换
-            return null; // TODO: 实现转换逻辑
-        }
-    }
-
-    /**
-     * Iceberg表加载器
-     */
-    private static class IcebergTableLoader {
-        public static org.apache.iceberg.flink.TableLoader fromCatalog(
-                Catalog catalog, TableIdentifier tableId) {
-            return org.apache.iceberg.flink.TableLoader.fromCatalog(
-                new IcebergCatalogLoader(catalog), tableId);
-        }
-    }
-
-    /**
-     * Iceberg Catalog加载器
-     */
-    private static class IcebergCatalogLoader
-            implements org.apache.iceberg.flink.CatalogLoader {
-
-        private final Catalog catalog;
-
-        public IcebergCatalogLoader(Catalog catalog) {
-            this.catalog = catalog;
-        }
-
-        @Override
-        public Catalog loadCatalog() {
-            return catalog;
-        }
-
-        @Override
-        public void close() {
-            // 关闭资源
-        }
-    }
-
-    @TISExtension()
-    public static class DefaultDescriptor extends BasicDescriptor {
-
-        @Override
-        public String getDisplayName() {
-            return "Iceberg Pipeline Sink";
+        protected IEndTypeGetter.EndType getTargetType() {
+            return EndType.Iceberg;
         }
     }
 }

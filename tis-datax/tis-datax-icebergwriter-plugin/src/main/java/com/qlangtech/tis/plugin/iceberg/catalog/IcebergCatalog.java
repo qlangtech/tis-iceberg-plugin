@@ -17,6 +17,7 @@ import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -81,6 +82,15 @@ public abstract class IcebergCatalog implements Describable<IcebergCatalog>, IRe
      * 取得 Iceberg Catalog 实例
      */
     public abstract Catalog getCatalog();
+
+    /**
+     * 取得构造本 Catalog 所需的属性（{@code type} / {@code warehouse} / {@code uri} …）。
+     * <p>
+     * 增量写入时这些属性要下发给执行节点，由执行节点自己建 Catalog（那里没有插件实例），
+     * 因此不能只提供 {@link #getCatalog()} 返回的成品对象。
+     * 返回值不含 Hadoop 连接参数：执行期由 {@link TISIcebergCatalog} 反查本插件补上。
+     */
+    public abstract Map<String, String> createCatalogOptions();
 
     /**
      * 目标数据库（Iceberg namespace）。各 Catalog 的取值来源不同：

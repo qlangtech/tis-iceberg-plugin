@@ -9,6 +9,7 @@ import com.qlangtech.tis.plugin.ds.BasicDataSourceFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.hive.HiveCatalog;
 
@@ -71,18 +72,23 @@ public class HiveMetastoreCatalog extends IcebergCatalog {
     private HiveCatalog createCatalog() {
         Configuration conf = this.getHadoopConf();
 
+        HiveCatalog hiveCatalog = new HiveCatalog();
+        hiveCatalog.setConf(conf);
+        hiveCatalog.initialize(this.catalogName, this.createCatalogOptions());
+        return hiveCatalog;
+    }
+
+    @Override
+    public Map<String, String> createCatalogOptions() {
         Map<String, String> properties = new HashMap<>();
+        properties.put(CatalogUtil.ICEBERG_CATALOG_TYPE, CatalogUtil.ICEBERG_CATALOG_TYPE_HIVE);
         properties.put(CatalogProperties.WAREHOUSE_LOCATION, this.getWarehouse());
         properties.put(CatalogProperties.CLIENT_POOL_SIZE, this.clientPoolSize);
         String metastoreUris = getHiveConnGetter().getMetaStoreUrls();
         if (StringUtils.isNotBlank(metastoreUris)) {
             properties.put(CatalogProperties.URI, metastoreUris);
         }
-
-        HiveCatalog hiveCatalog = new HiveCatalog();
-        hiveCatalog.setConf(conf);
-        hiveCatalog.initialize(this.catalogName, properties);
-        return hiveCatalog;
+        return properties;
     }
 
     @Override

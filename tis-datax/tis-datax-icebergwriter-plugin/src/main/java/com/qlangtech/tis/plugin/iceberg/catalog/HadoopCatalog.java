@@ -6,6 +6,7 @@ import com.qlangtech.tis.plugin.annotation.FormFieldType;
 import com.qlangtech.tis.plugin.annotation.Validator;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.catalog.Catalog;
 
 import java.util.HashMap;
@@ -55,16 +56,21 @@ public class HadoopCatalog extends IcebergCatalog {
         Configuration conf = this.getHadoopConf();
         String warehouse = this.getWarehouse();
 
+        org.apache.iceberg.hadoop.HadoopCatalog hadoopCatalog =
+                new org.apache.iceberg.hadoop.HadoopCatalog(conf, warehouse);
+        hadoopCatalog.initialize(this.catalogName, this.createCatalogOptions());
+        return hadoopCatalog;
+    }
+
+    @Override
+    public Map<String, String> createCatalogOptions() {
         Map<String, String> properties = new HashMap<>();
-        properties.put(CatalogProperties.WAREHOUSE_LOCATION, warehouse);
+        properties.put(CatalogUtil.ICEBERG_CATALOG_TYPE, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+        properties.put(CatalogProperties.WAREHOUSE_LOCATION, this.getWarehouse());
         if (Boolean.FALSE.equals(this.cacheEnabled)) {
             properties.put(CatalogProperties.CACHE_ENABLED, "false");
         }
-
-        org.apache.iceberg.hadoop.HadoopCatalog hadoopCatalog =
-                new org.apache.iceberg.hadoop.HadoopCatalog(conf, warehouse);
-        hadoopCatalog.initialize(this.catalogName, properties);
-        return hadoopCatalog;
+        return properties;
     }
 
     @Override

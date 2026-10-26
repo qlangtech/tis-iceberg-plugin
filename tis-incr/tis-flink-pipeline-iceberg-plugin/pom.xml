@@ -18,22 +18,50 @@
     <description>Flink pipeline plugin for Apache Iceberg streaming</description>
 
     <properties>
-        <flink.version.major>1.17</flink.version.major>
-        <flink-cdc.version>3.1.0</flink-cdc.version>
+        <classifier>hive_${hive.version};hadoop_${hadoop-version}</classifier>
     </properties>
 
     <dependencies>
-        <!-- TIS Flink基础依赖 -->
         <dependency>
             <groupId>com.qlangtech.tis.plugins</groupId>
-            <artifactId>tis-realtime-flink</artifactId>
-            <version>${project.version}</version>
+            <artifactId>tis-scala-compiler</artifactId>
         </dependency>
 
         <dependency>
             <groupId>com.qlangtech.tis.plugins</groupId>
-            <artifactId>tis-flink-cdc-plugin</artifactId>
+            <artifactId>tis-incr-test</artifactId>
             <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- TIS Flink 基础依赖 -->
+        <dependency>
+            <groupId>com.qlangtech.tis.plugins</groupId>
+            <artifactId>tis-realtime-flink</artifactId>
+            <version>${project.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- TIS 定制的 flink-cdc Iceberg 连接器：jar 内已经 shade 了 org/apache/iceberg/flink/**
+             与 org/apache/flink/cdc/**，因此它自带的 iceberg-flink / iceberg-core 传递依赖必须排除，
+             否则 WEB-INF/lib 里会同时出现「connector 内的 flink 集成类」和「iceberg-flink 原 jar」，
+             iceberg core 更会与 tis-datax-icebergwriter-plugin 里那份撞成两个类身份
+             （paimon 插件踩过同样的坑）。iceberg 全栈统一由 writer 插件提供 -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-cdc-pipeline-connector-iceberg-tis</artifactId>
+            <version>${flink.cdc.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.apache.iceberg</groupId>
+                    <artifactId>*</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- IcebergCatalog 与各文件格式（IcebergFileFormat/Parquet/ORC/Avro）与 DataX 写入插件共用同一份实现，
@@ -45,116 +73,59 @@
             <version>${project.version}</version>
         </dependency>
 
-        <!-- Apache Iceberg核心依赖 -->
+        <!-- Apache Iceberg 核心依赖：只在编译期可见（运行时由 tis-datax-icebergwriter-plugin
+             的 WEB-INF/lib 提供，见上面的 Plugin-Dependencies）。
+             scope 必须是 provided，否则 maven-tpi-plugin 会把它们再打一份进本插件的 WEB-INF/lib；
+             两份同名 iceberg 类分属不同 PluginFirstClassLoader 时，跨 loader 传 Table/Catalog
+             就会 LinkageError -->
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-core</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-api</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-data</artifactId>
+            <scope>provided</scope>
         </dependency>
 
-        <!-- Iceberg Flink Runtime -->
-        <dependency>
-            <groupId>org.apache.iceberg</groupId>
-            <artifactId>iceberg-flink-runtime-${flink.version.major}</artifactId>
-        </dependency>
-
-        <!-- Iceberg Catalog实现 -->
+        <!-- Iceberg Catalog 实现 -->
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-hive-metastore</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
             <groupId>org.apache.iceberg</groupId>
             <artifactId>iceberg-aws</artifactId>
-        </dependency>
-
-        <!-- Flink依赖 -->
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-streaming-java</artifactId>
-            <version>${flink.version}</version>
             <scope>provided</scope>
         </dependency>
 
+        <!-- Flink CDC（已在 tis-flink-extends 中加载） -->
         <dependency>
+            <artifactId>flink-cdc-common</artifactId>
             <groupId>org.apache.flink</groupId>
-            <artifactId>flink-table-api-java-bridge</artifactId>
-            <version>${flink.version}</version>
+            <version>${flink.cdc.version}</version>
             <scope>provided</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-connector-base</artifactId>
-            <version>${flink.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- Flink CDC -->
-        <dependency>
-            <groupId>com.ververica</groupId>
-            <artifactId>flink-cdc-base</artifactId>
-            <version>${flink-cdc.version}</version>
-            <scope>provided</scope>
-        </dependency>
-
-        <!-- 测试依赖 -->
-        <dependency>
-            <groupId>com.qlangtech.tis.plugins</groupId>
-            <artifactId>tis-datax-test-common</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.easymock</groupId>
-            <artifactId>easymock</artifactId>
-            <scope>test</scope>
-        </dependency>
-
-        <dependency>
-            <groupId>org.apache.flink</groupId>
-            <artifactId>flink-test-utils</artifactId>
-            <version>${flink.version}</version>
-            <scope>test</scope>
         </dependency>
     </dependencies>
 
     <build>
         <plugins>
             <plugin>
-                <artifactId>maven-assembly-plugin</artifactId>
+                <groupId>com.qlangtech.tis</groupId>
+                <artifactId>maven-tpi-plugin</artifactId>
                 <configuration>
-                    <descriptors>
-                        <descriptor>src/main/assembly/package.xml</descriptor>
-                    </descriptors>
-                    <finalName>flink-iceberg</finalName>
+                    <maskClasses>org.apache.hadoop.</maskClasses>
                 </configuration>
-                <executions>
-                    <execution>
-                        <id>dwzip</id>
-                        <phase>none</phase>
-                        <goals>
-                            <goal>single</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>

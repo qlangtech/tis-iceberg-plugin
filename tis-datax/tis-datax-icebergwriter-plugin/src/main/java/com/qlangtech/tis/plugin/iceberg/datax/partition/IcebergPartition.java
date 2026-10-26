@@ -4,6 +4,8 @@ import com.qlangtech.tis.extension.Describable;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 
+import java.util.List;
+
 /**
  * Iceberg 分区策略抽象基类。
  * <p>
@@ -19,6 +21,15 @@ public abstract class IcebergPartition implements Describable<IcebergPartition> 
      * 创建分区规格
      */
     public abstract PartitionSpec createPartitionSpec(Schema schema);
+
+    /**
+     * 以 {@code {transform}:{column}} 形式表达的分区项，供增量侧（flink-cdc pipeline sink）使用。
+     * <p>
+     * 增量写入时 Iceberg 表由执行节点上的 sink 创建，插件实例不在场，
+     * 无法调用 {@link #createPartitionSpec(Schema)} 传 {@link PartitionSpec} 对象，
+     * 只能传这种可以序列化的字符串编码（sink 端由 IcebergMetadataApplier 解码）。
+     */
+    public abstract List<String> getIncrPartitionKeys();
 
     /**
      * 是否为分区表

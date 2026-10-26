@@ -22,6 +22,7 @@
   </licenses>
   <modules>
     <module>tis-datax</module>
+    <module>tis-incr</module>
   </modules>
   <scm>
     <connection>scm:git:git://github.com/qlangtech/tis-iceberg-plugin.git</connection>
@@ -68,11 +69,6 @@
       <dependency>
         <groupId>org.apache.iceberg</groupId>
         <artifactId>iceberg-aws</artifactId>
-        <version>${iceberg.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.iceberg</groupId>
-        <artifactId>iceberg-flink-runtime-${flink.version}</artifactId>
         <version>${iceberg.version}</version>
       </dependency>
       <dependency>

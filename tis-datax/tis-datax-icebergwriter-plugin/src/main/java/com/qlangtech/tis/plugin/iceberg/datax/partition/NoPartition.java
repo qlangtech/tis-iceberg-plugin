@@ -5,6 +5,9 @@ import com.qlangtech.tis.extension.TISExtension;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 
+import java.util.Collections;
+import java.util.List;
+
 /**
  * 无分区策略
  *
@@ -16,6 +19,11 @@ public class NoPartition extends IcebergPartition {
     @Override
     public PartitionSpec createPartitionSpec(Schema schema) {
         return PartitionSpec.unpartitioned();
+    }
+
+    @Override
+    public List<String> getIncrPartitionKeys() {
+        return Collections.emptyList();
     }
 
     @Override

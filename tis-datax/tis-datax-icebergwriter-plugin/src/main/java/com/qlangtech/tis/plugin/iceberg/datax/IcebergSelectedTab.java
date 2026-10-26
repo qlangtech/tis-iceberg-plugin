@@ -2,6 +2,7 @@ package com.qlangtech.tis.plugin.iceberg.datax;
 
 import com.alibaba.citrus.turbine.Context;
 import com.qlangtech.tis.extension.TISExtension;
+import com.qlangtech.tis.manage.common.Option;
 import com.qlangtech.tis.plugin.annotation.FormField;
 import com.qlangtech.tis.plugin.annotation.Validator;
 import com.qlangtech.tis.plugin.datax.SelectedTab;
@@ -10,7 +11,9 @@ import com.qlangtech.tis.runtime.module.misc.IControlMsgHandler;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 
+import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Iceberg 写入端表设置。
@@ -35,6 +38,30 @@ public class IcebergSelectedTab extends SelectedTab {
      */
     public PartitionSpec createPartitionSpec(Schema schema) {
         return Objects.requireNonNull(this.partitionSpec, "partitionSpec can not be null").createPartitionSpec(schema);
+    }
+
+    public static List<Option> getPtCandidateDateFields() {
+        return SelectedTab.getContextOpts((cols) -> cols.stream().filter((col) -> {
+            switch (col.getType().getCollapse()) {
+                // case STRING:
+                case INT:
+                case Long:
+                case Date:
+                    return true;
+            }
+            return false;
+        }));
+    }
+    /**
+     * 增量侧的分区项（{@code {transform}:{column}} 形式），交给 flink-cdc 的 sink 执行端建表
+     */
+    @Override
+    public Optional<List<String>> getPartitionKeys() {
+        if (this.partitionSpec == null) {
+            return Optional.empty();
+        }
+        List<String> keys = this.partitionSpec.getIncrPartitionKeys();
+        return keys.isEmpty() ? Optional.empty() : Optional.of(keys);
     }
 
     @TISExtension

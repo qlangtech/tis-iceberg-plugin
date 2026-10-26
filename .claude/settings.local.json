@@ -5,7 +5,8 @@
       "Read(//opt/misc/tis-paimon-plugin/tis-incr/tis-flink-pipeline-paimon-plugin/**)",
       "Read(//opt/misc/tis-paimon-plugin/tis-datax/tis-datax-paimonwriter-plugin/src/main/java/com/qlangtech/tis/plugin/paimon/datax/utils/**)",
       "Read(//opt/misc/tis-paimon-plugin/tis-datax/tis-datax-paimonwriter-plugin/src/main/java/com/qlangtech/tis/plugin/paimon/datax/**)",
-      "Read(//opt/misc/tis-paimon-plugin/**)"
+      "Read(//opt/misc/tis-paimon-plugin/**)",
+      "Bash(git check-ignore *)"
     ],
     "deny": [],
     "ask": []

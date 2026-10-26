@@ -28,7 +28,7 @@
 
     <modules>
         <module>tis-datax</module>
-<!--        <module>tis-incr</module>-->
+        <module>tis-incr</module>
     </modules>
 
     <properties>
@@ -91,11 +91,11 @@
             </dependency>
 
             <!-- Iceberg Flink集成 -->
-            <dependency>
-                <groupId>org.apache.iceberg</groupId>
-                <artifactId>iceberg-flink-runtime-${flink.version}</artifactId>
-                <version>${iceberg.version}</version>
-            </dependency>
+<!--            <dependency>-->
+<!--                <groupId>org.apache.iceberg</groupId>-->
+<!--                <artifactId>iceberg-flink-runtime-${flink.version}</artifactId>-->
+<!--                <version>${iceberg.version}</version>-->
+<!--            </dependency>-->
 
             <!-- Hadoop依赖 -->
             <dependency>

@@ -4,9 +4,12 @@ import com.alibaba.datax.common.element.ColumnCast;
 import com.alibaba.datax.common.element.StringColumn;
 import com.alibaba.datax.common.util.Configuration;
 import com.google.common.collect.Lists;
+import com.qlangtech.tis.datax.StoreResourceType;
+import com.qlangtech.tis.plugin.datax.SelectedTab;
 import com.qlangtech.tis.plugin.ds.CMeta;
 import com.qlangtech.tis.plugin.ds.JDBCTypes;
 import com.qlangtech.tis.plugin.iceberg.catalog.IcebergCatalog;
+import com.qlangtech.tis.plugin.iceberg.catalog.TISIcebergCatalog;
 import com.qlangtech.tis.plugin.iceberg.datax.partition.NoPartition;
 import com.qlangtech.tis.plugin.iceberg.datax.partition.TimePartition;
 import com.qlangtech.tis.plugin.iceberg.format.AvroFileFormat;
@@ -14,6 +17,8 @@ import com.qlangtech.tis.plugin.iceberg.format.IcebergFileFormat;
 import com.qlangtech.tis.plugin.iceberg.format.OrcFileFormat;
 import com.qlangtech.tis.plugin.iceberg.format.ParquetFileFormat;
 import com.qlangtech.tis.plugin.iceberg.utils.IcebergUtils;
+import org.apache.iceberg.CatalogProperties;
+import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -30,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
  * 只覆盖不依赖 TIS 运行时的纯逻辑：类型映射、schema 构建、表属性归一化、分区 spec
@@ -151,7 +157,7 @@ public class TestDataxIcebergWriter {
     public void testTimePartitionSpec() {
         TimePartition partition = new TimePartition();
         partition.timeColumn = "create_time";
-        partition.granularity = "day";
+        partition.granularity = TimePartition.Granularity.day;
 
         Schema schema = IcebergUtils.createSchema(Lists.newArrayList(
                 new IcebergColumn(CMeta.create("id", JDBCTypes.BIGINT)),
@@ -184,11 +190,93 @@ public class TestDataxIcebergWriter {
 
         TimePartition partition = new TimePartition();
         partition.timeColumn = "create_time";
-        partition.granularity = "month";
+        partition.granularity = TimePartition.Granularity.month;
         tab.partitionSpec = partition;
         PartitionSpec spec = tab.createPartitionSpec(schema());
         Assert.assertEquals(1, spec.fields().size());
         Assert.assertEquals("month", spec.fields().get(0).transform().toString());
+    }
+
+    /**
+     * 增量侧分区项必须是 {@code {transform}:{column}} 编码：执行节点上没有插件实例，
+     * 只能把「怎么分区」压成字符串随 CreateTableEvent 下发。这里锁住编码格式，
+     * 防止与 sink 端 {@code IcebergMetadataApplier#applyPartition} 的解析漂移。
+     */
+    @Test
+    public void testIncrPartitionKeys() {
+        TimePartition partition = new TimePartition();
+        partition.timeColumn = "create_time";
+        partition.granularity = TimePartition.Granularity.hour;
+        Assert.assertEquals(Collections.singletonList("hour:create_time"), partition.getIncrPartitionKeys());
+
+        // 无分区策略不产生分区项，sink 侧据此走非分区建表
+        Assert.assertTrue(new NoPartition().getIncrPartitionKeys().isEmpty());
+    }
+
+    /**
+     * 表设置是分区项的唯一出口：selectedTab 上没有分区策略时 sink 不能收到任何分区项，
+     * 否则会按空列名建分区 spec 而报错。
+     */
+    @Test
+    public void testSelectedTabPartitionKeys() {
+        IcebergSelectedTab tab = new IcebergSelectedTab();
+        // 老数据 / 框架降级构造的 tab 可能没有分区策略，必须安全降级为「无分区」
+        Assert.assertTrue(tab.getPartitionKeys().isEmpty());
+
+        tab.partitionSpec = new NoPartition();
+        Assert.assertTrue(tab.getPartitionKeys().isEmpty());
+
+        TimePartition partition = new TimePartition();
+        partition.timeColumn = "create_time";
+        partition.granularity = TimePartition.Granularity.month;
+        tab.partitionSpec = partition;
+        Assert.assertEquals(Optional.of(Collections.singletonList("month:create_time")), tab.getPartitionKeys());
+    }
+
+    /**
+     * 增量建表下发的表属性必须与全量走同一份配置来源，否则同一张表在两条链路上格式/压缩会不一致
+     */
+    @Test
+    public void testCreateTabOptsReusesWriterTableProperties() {
+        DataxIcebergWriter writer = createWriter(new OrcFileFormat());
+        writer.targetFileSizeBytes = 536870912L;
+
+        Function<SelectedTab, Map<String, String>> tabOptsCreator = writer.createTabOpts();
+        // createTabOpts 对每张表给同一份 writer 配置，tab 本身不参与
+        IcebergSelectedTab tab = new IcebergSelectedTab();
+        tab.name = "t_order";
+        Map<String, String> tabOpts = tabOptsCreator.apply(tab);
+
+        Map<String, String> expected = new HashMap<>();
+        writer.setTableProperties(expected);
+        Assert.assertEquals(expected, tabOpts);
+        Assert.assertEquals("ORC", tabOpts.get(TableProperties.DEFAULT_FILE_FORMAT));
+        Assert.assertEquals("536870912", tabOpts.get(TableProperties.WRITE_TARGET_FILE_SIZE_BYTES));
+    }
+
+    /**
+     * catalog 属性里必须带上 catalog-impl 与 dataxName：执行节点靠前者反射出
+     * {@link TISIcebergCatalog}，靠后者反查 writer 拿到 hadoop 连接参数
+     */
+    @Test
+    public void testCreateCatalogOptions() {
+        Map<String, String> catalogOptions = TISIcebergCatalog.createCatalogOptions(
+                new StubCatalog().createCatalogOptions(), "iceberg_incr");
+
+        Assert.assertEquals(TISIcebergCatalog.CATALOG_IMPL, catalogOptions.get(CatalogProperties.CATALOG_IMPL));
+        Assert.assertEquals("iceberg_incr", catalogOptions.get(StoreResourceType.DATAX_NAME));
+        Assert.assertEquals("false", catalogOptions.get(CatalogProperties.CACHE_ENABLED));
+        // 具体 Catalog 给的属性要原样保留，否则执行节点不知道该连哪个 warehouse
+        Assert.assertEquals(CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
+                catalogOptions.get(CatalogUtil.ICEBERG_CATALOG_TYPE));
+        Assert.assertEquals("file:///tmp/warehouse", catalogOptions.get(CatalogProperties.WAREHOUSE_LOCATION));
+
+        try {
+            TISIcebergCatalog.createCatalogOptions(new HashMap<>(), null);
+            Assert.fail("expect IllegalArgumentException when dataxName is empty");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
     }
 
     private static Schema schema() {
@@ -217,6 +305,18 @@ public class TestDataxIcebergWriter {
         @Override
         public Optional<String> getDBName() {
             return Optional.of("test_db");
+        }
+
+        /**
+         * 增量侧下发给执行节点的 Catalog 属性：固定成 hadoop 类型，便于断言
+         * {@code TISIcebergCatalog.createCatalogOptions} 的合并结果
+         */
+        @Override
+        public Map<String, String> createCatalogOptions() {
+            Map<String, String> opts = new HashMap<>();
+            opts.put(CatalogUtil.ICEBERG_CATALOG_TYPE, CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+            opts.put(CatalogProperties.WAREHOUSE_LOCATION, "file:///tmp/warehouse");
+            return opts;
         }
     }
 }
