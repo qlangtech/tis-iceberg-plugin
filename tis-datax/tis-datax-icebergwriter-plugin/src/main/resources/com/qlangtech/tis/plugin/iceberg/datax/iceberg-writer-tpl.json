@@ -1,0 +1,16 @@
+{
+  "name": "icebergwriter",
+  "parameter": {
+    "tableName": "$writer.tableName",
+    "sourceTableName": "$writer.sourceTableName",
+    "databaseName": "$writer.databaseName",
+    "column": [
+      #foreach($col in $writer.icebergCols )
+      {
+        "name": "$col.name",
+        "type": "$col.type"
+      } #if($foreach.hasNext),#end
+      #end
+    ]
+  }
+}

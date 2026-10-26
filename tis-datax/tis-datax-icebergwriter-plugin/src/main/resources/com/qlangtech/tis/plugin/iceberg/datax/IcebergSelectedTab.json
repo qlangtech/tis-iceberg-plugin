@@ -1,0 +1,6 @@
+{
+  "partitionSpec": {
+    "label": "分区策略",
+    "dftVal": "No Partition"
+  }
+}

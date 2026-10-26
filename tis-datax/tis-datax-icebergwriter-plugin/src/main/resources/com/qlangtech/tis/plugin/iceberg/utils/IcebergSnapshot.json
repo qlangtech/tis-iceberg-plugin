@@ -1,0 +1,12 @@
+{
+  "snapshotRetainCount": {
+    "label": "保留快照数量",
+    "help": "无论快照是否过期，至少保留最近 N 个快照，避免清理过头导致时间旅行不可用",
+    "dftVal": 10
+  },
+  "expireOlderThanDays": {
+    "label": "过期天数",
+    "help": "早于该天数的快照会被清理（同时删除其独占的数据文件）。设为 0 则不清理过期快照",
+    "dftVal": 7
+  }
+}

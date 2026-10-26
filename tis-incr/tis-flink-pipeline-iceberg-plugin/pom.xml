@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.qlangtech.tis.plugins</groupId>
+        <artifactId>tis-incr-iceberg</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>tis-flink-pipeline-iceberg-plugin</artifactId>
+    <packaging>tpi</packaging>
+
+    <name>TIS Flink Pipeline Iceberg Plugin</name>
+    <description>Flink pipeline plugin for Apache Iceberg streaming</description>
+
+    <properties>
+        <flink.version.major>1.17</flink.version.major>
+        <flink-cdc.version>3.1.0</flink-cdc.version>
+    </properties>
+
+    <dependencies>
+        <!-- TIS Flink基础依赖 -->
+        <dependency>
+            <groupId>com.qlangtech.tis.plugins</groupId>
+            <artifactId>tis-realtime-flink</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.qlangtech.tis.plugins</groupId>
+            <artifactId>tis-flink-cdc-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- IcebergCatalog 与各文件格式（IcebergFileFormat/Parquet/ORC/Avro）与 DataX 写入插件共用同一份实现，
+             避免两侧各维护一套压缩编码与表属性。打了 tpi 的依赖会被 MavenArtifact.isPlugin() 识别为
+             插件依赖（不进 WEB-INF/lib，只写进 Plugin-Dependencies），因此运行时需要同时安装该插件 -->
+        <dependency>
+            <groupId>com.qlangtech.tis.plugins</groupId>
+            <artifactId>tis-datax-icebergwriter-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Apache Iceberg核心依赖 -->
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-data</artifactId>
+        </dependency>
+
+        <!-- Iceberg Flink Runtime -->
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-flink-runtime-${flink.version.major}</artifactId>
+        </dependency>
+
+        <!-- Iceberg Catalog实现 -->
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-hive-metastore</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-aws</artifactId>
+        </dependency>
+
+        <!-- Flink依赖 -->
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-streaming-java</artifactId>
+            <version>${flink.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-table-api-java-bridge</artifactId>
+            <version>${flink.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-connector-base</artifactId>
+            <version>${flink.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Flink CDC -->
+        <dependency>
+            <groupId>com.ververica</groupId>
+            <artifactId>flink-cdc-base</artifactId>
+            <version>${flink-cdc.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- 测试依赖 -->
+        <dependency>
+            <groupId>com.qlangtech.tis.plugins</groupId>
+            <artifactId>tis-datax-test-common</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.easymock</groupId>
+            <artifactId>easymock</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.flink</groupId>
+            <artifactId>flink-test-utils</artifactId>
+            <version>${flink.version}</version>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/main/assembly/package.xml</descriptor>
+                    </descriptors>
+                    <finalName>flink-iceberg</finalName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>dwzip</id>
+                        <phase>none</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

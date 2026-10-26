@@ -1,0 +1,14 @@
+{
+  "catalogName": {
+    "label": "Catalog 名称",
+    "help": "Iceberg Catalog 实例名，同一 TIS 实例下需唯一。仅作为元数据标识，不参与具体存储路径的计算"
+  },
+  "fsName": {
+    "label": "文件系统",
+    "help": "选择数据文件所在的文件系统实例。数据仓库根路径即该实例的 rootDir，Hadoop 连接参数也由它提供",
+    "creator": {
+      "label": "管理",
+      "plugin": "com.qlangtech.tis.offline.FileSystemFactory.useable()"
+    }
+  }
+}

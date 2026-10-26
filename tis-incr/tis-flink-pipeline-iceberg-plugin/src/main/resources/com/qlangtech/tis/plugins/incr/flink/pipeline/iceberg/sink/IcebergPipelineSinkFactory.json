@@ -1,0 +1,39 @@
+{
+  "catalog": {
+    "label": "Catalog"
+  },
+  "fileFormat": {
+    "label": "文件格式",
+    "dftVal": "Parquet"
+  },
+  "targetFileSizeBytes": {
+    "label": "目标文件大小(字节)",
+    "dftVal": 134217728,
+    "help": "单个数据文件的目标大小（字节），Iceberg 默认 512MB"
+  },
+  "parallelism": {
+    "label": "写入并行度",
+    "dftVal": 1,
+    "help": "Flink Sink 的写入并行度，建议根据数据量与集群资源调整"
+  },
+  "enableUpsert": {
+    "label": "启用 Upsert",
+    "dftVal": false,
+    "help": "是否启用 upsert 模式。开启后必须同时指定主键字段"
+  },
+  "equalityFieldColumns": {
+    "label": "主键字段",
+    "placeholder": "例如: id,name",
+    "help": "upsert 模式下的主键字段列表，多个字段用英文逗号分隔"
+  },
+  "checkpointInterval": {
+    "label": "Checkpoint 间隔(毫秒)",
+    "dftVal": 60000,
+    "help": "Flink checkpoint 间隔，影响数据一致性与写入性能"
+  },
+  "enableSchemaEvolution": {
+    "label": "启用 Schema 演化",
+    "dftVal": true,
+    "help": "是否允许写入过程中自动演化表 Schema"
+  }
+}

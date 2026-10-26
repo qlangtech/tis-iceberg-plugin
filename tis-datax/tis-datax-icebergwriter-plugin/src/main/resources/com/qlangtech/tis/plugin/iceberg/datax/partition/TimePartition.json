@@ -1,0 +1,30 @@
+{
+  "timeColumn": {
+    "label": "分区字段",
+    "help": "用于分区的日期/时间列，必须是目标表（或源表中可映射）的列名",
+    "placeholder": "例如: create_time"
+  },
+  "granularity": {
+    "label": "分区粒度",
+    "dftVal": "day",
+    "help": "时间分区的粒度。粒度过细（小时）会产生大量小分区和元数据，粒度过粗（年）则分区裁剪效果有限",
+    "enum": [
+      {
+        "val": "year",
+        "label": "按年"
+      },
+      {
+        "val": "month",
+        "label": "按月"
+      },
+      {
+        "val": "day",
+        "label": "按日"
+      },
+      {
+        "val": "hour",
+        "label": "按小时"
+      }
+    ]
+  }
+}

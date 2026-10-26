@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.qlangtech.tis.plugins</groupId>
+        <artifactId>tis-datax-iceberg</artifactId>
+        <version>${revision}</version>
+        <relativePath>../pom.xml</relativePath>
+    </parent>
+
+    <artifactId>tis-datax-icebergwriter-plugin</artifactId>
+    <packaging>tpi</packaging>
+
+    <name>TIS DataX Iceberg Writer Plugin</name>
+    <description>DataX writer plugin for Apache Iceberg tables</description>
+
+    <properties>
+        <fb303.version>0.9.3</fb303.version>
+        <thrift.version>0.12.0</thrift.version>
+        <classifier>hive_${hive.version};hadoop_${hadoop-version}</classifier>
+        <!-- 父 pom 的 argLine 只开了 java.base/java.lang，而 subDescEnumFilter 走的
+             PropertyType.applicableDescriptors 会用 Groovy 生成一个 Function 实现类并反射取
+             lambda$identity$2，JDK17 下还需要打开 java.util.function -->
+        <tis.test.argLine>--add-opens java.base/java.lang=ALL-UNNAMED
+            --add-opens java.base/java.util.function=ALL-UNNAMED
+            -Xms768M -Xmx768M -Djava.awt.headless=true -XX:+HeapDumpOnOutOfMemoryError
+            -XX:+TieredCompilation -XX:TieredStopAtLevel=1
+        </tis.test.argLine>
+    </properties>
+
+    <dependencies>
+        <!-- hive-exec（经 tis-hive-flat-table-builder-plugin 传递进来）里自带一份 shading 过的
+             org.apache.commons.lang3，其中的 FastDateFormat 没有 parse(String)，会遮蔽真正的
+             commons-lang3，导致 datax-common 的 ColumnCast 转换日期时 NoSuchMethodError。
+             提前声明在依赖顺序更前的位置以修正 classpath 顺序（打包时会被
+             maven-tpi-plugin.classpathDependentExcludes 排除，不会进 tpi） -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-lang3</artifactId>
+        </dependency>
+
+        <!-- TIS基础依赖 -->
+        <dependency>
+            <groupId>com.qlangtech.tis.plugins</groupId>
+            <artifactId>tis-datax-common-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.qlangtech.tis.plugins</groupId>
+            <artifactId>tis-hive-flat-table-builder-plugin</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- DataX依赖 -->
+        <dependency>
+            <groupId>com.alibaba.datax</groupId>
+            <artifactId>datax-common</artifactId>
+            <version>${project.version}</version>
+            <scope>provided</scope>
+            <exclusions>
+                <exclusion>
+                    <artifactId>slf4j-log4j12</artifactId>
+                    <groupId>org.slf4j</groupId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Apache Iceberg核心依赖 -->
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-core</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-api</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-data</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-parquet</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-orc</artifactId>
+        </dependency>
+
+        <!-- Iceberg Catalog实现 -->
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-hive-metastore</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.iceberg</groupId>
+            <artifactId>iceberg-aws</artifactId>
+        </dependency>
+
+        <!-- Parquet -->
+        <dependency>
+            <groupId>org.apache.parquet</groupId>
+            <artifactId>parquet-avro</artifactId>
+        </dependency>
+
+        <!-- AWS SDK (for Glue Catalog) -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>glue</artifactId>
+        </dependency>
+
+        <!-- 测试依赖 -->
+        <dependency>
+            <groupId>com.qlangtech.tis.plugins</groupId>
+            <artifactId>tis-datax-test-common</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.alibaba.datax</groupId>
+            <artifactId>datax-core</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.easymock</groupId>
+            <artifactId>easymock</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <!-- 显式覆盖 surefire 的 argLine：父 pom 里 `argLine` 这个属性名撞上了
+                 Jenkins 父 pom 的 profile 属性，实际生效值里没有我们加的 opens，
+                 所以这里换成不撞名的 tis.test.argLine -->
+            <plugin>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <argLine>${tis.test.argLine}</argLine>
+                </configuration>
+            </plugin>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptors>
+                        <descriptor>src/main/assembly/package.xml</descriptor>
+                    </descriptors>
+                    <finalName>datax</finalName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>dwzip</id>
+                        <phase>none</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

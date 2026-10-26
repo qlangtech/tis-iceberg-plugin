@@ -1,0 +1,10 @@
+{
+  "compressionCodec": {
+    "label": "压缩编码",
+    "dftVal": "gzip"
+  },
+  "compressionLevel": {
+    "label": "压缩级别",
+    "placeholder": "例如: 5"
+  }
+}

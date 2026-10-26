@@ -1,0 +1,22 @@
+{
+  "dbName": {
+    "label": "hiveserver2",
+    "help": "选择元数据所用的 Hiveserver2 数据源实例，Metastore 地址与目标库名都取自该数据源",
+    "enum": "com.qlangtech.tis.util.PluginItems.getExistDbs(\"Hiveserver2\")",
+    "creator": {
+      "label": "配置",
+      "assistType": "dbQuickManager",
+      "plugin": [
+        {
+          "hetero": "datasource",
+          "descName": "Hiveserver2",
+          "extraParam": "type_detailed,update_false,disableBizStore_true"
+        }
+      ]
+    }
+  },
+  "clientPoolSize": {
+    "label": "Metastore 客户端连接池大小",
+    "help": "访问 Metastore 的连接池大小。DataX 多子任务并发写入时建议适当调大，默认 5"
+  }
+}

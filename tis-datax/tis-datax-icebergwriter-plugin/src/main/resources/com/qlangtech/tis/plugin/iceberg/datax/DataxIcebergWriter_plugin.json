@@ -1,0 +1,6 @@
+{
+  "name": "icebergwriter",
+  "class": "com.alibaba.datax.plugin.writer.iceberg.IcebergWriter",
+  "description": "useScene: prod. mechanism: via Iceberg Catalog write data concurrent.",
+  "developer": "qlangtech"
+}

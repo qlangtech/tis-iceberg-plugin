@@ -1,0 +1,30 @@
+{
+  "compressionCodec": {
+    "label": "压缩编码",
+    "dftVal": "zlib"
+  },
+  "compressionStrategy": {
+    "label": "压缩策略",
+    "dftVal": "speed"
+  },
+  "stripeSize": {
+    "label": "Stripe 大小(MB)",
+    "dftVal": 64
+  },
+  "blockSize": {
+    "label": "Block 大小(MB)",
+    "dftVal": 256
+  },
+  "vectorizedBatchSize": {
+    "label": "向量化批大小",
+    "dftVal": 1024
+  },
+  "bloomFilterColumns": {
+    "label": "布隆过滤列",
+    "placeholder": "例如: id,order_no"
+  },
+  "bloomFilterFpp": {
+    "label": "布隆过滤误判率",
+    "dftVal": 0.05
+  }
+}

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.qlangtech.tis.plugins</groupId>
+        <artifactId>tis-plugin-parent</artifactId>
+        <version>5.1.0</version>
+    </parent>
+
+    <!--https://github.com/apache/iceberg-->
+
+    <artifactId>tis-iceberg-plugin</artifactId>
+    <version>${revision}</version>
+    <packaging>pom</packaging>
+
+    <name>TIS Iceberg Plugin</name>
+    <description>Apache Iceberg plugin for TIS, supporting batch and incremental data processing</description>
+
+    <scm>
+        <connection>scm:git:git://github.com/qlangtech/tis-iceberg-plugin.git</connection>
+        <developerConnection>scm:git:ssh://git@github.com/qlangtech/tis-iceberg-plugin.git</developerConnection>
+        <url>https://github.com/qlangtech/tis-iceberg-plugin</url>
+        <tag>HEAD</tag>
+    </scm>
+
+    <modules>
+        <module>tis-datax</module>
+<!--        <module>tis-incr</module>-->
+    </modules>
+
+    <properties>
+
+        <!-- Apache Iceberg版本 -->
+        <iceberg.version>1.12.0</iceberg.version>
+
+        <!-- AWS SDK版本（用于Glue Catalog） -->
+        <aws.sdk.version>2.20.131</aws.sdk.version>
+
+        <!-- Parquet版本 -->
+        <parquet.version>1.13.1</parquet.version>
+
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <!-- Apache Iceberg核心依赖 -->
+            <dependency>
+                <groupId>org.apache.iceberg</groupId>
+                <artifactId>iceberg-core</artifactId>
+                <version>${iceberg.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.iceberg</groupId>
+                <artifactId>iceberg-api</artifactId>
+                <version>${iceberg.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.iceberg</groupId>
+                <artifactId>iceberg-data</artifactId>
+                <version>${iceberg.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.iceberg</groupId>
+                <artifactId>iceberg-parquet</artifactId>
+                <version>${iceberg.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.iceberg</groupId>
+                <artifactId>iceberg-orc</artifactId>
+                <version>${iceberg.version}</version>
+            </dependency>
+
+            <!-- Iceberg Catalog实现 -->
+            <dependency>
+                <groupId>org.apache.iceberg</groupId>
+                <artifactId>iceberg-hive-metastore</artifactId>
+                <version>${iceberg.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.iceberg</groupId>
+                <artifactId>iceberg-aws</artifactId>
+                <version>${iceberg.version}</version>
+            </dependency>
+
+            <!-- Iceberg Flink集成 -->
+            <dependency>
+                <groupId>org.apache.iceberg</groupId>
+                <artifactId>iceberg-flink-runtime-${flink.version}</artifactId>
+                <version>${iceberg.version}</version>
+            </dependency>
+
+            <!-- Hadoop依赖 -->
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-common</artifactId>
+                <version>${hadoop-version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-hdfs</artifactId>
+                <version>${hadoop-version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <!-- Hive依赖 -->
+            <dependency>
+                <groupId>org.apache.hive</groupId>
+                <artifactId>hive-metastore</artifactId>
+                <version>${hive.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <!-- AWS SDK（用于Glue Catalog） -->
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>glue</artifactId>
+                <version>${aws.sdk.version}</version>
+            </dependency>
+
+            <!-- Parquet -->
+            <dependency>
+                <groupId>org.apache.parquet</groupId>
+                <artifactId>parquet-avro</artifactId>
+                <version>${parquet.version}</version>
+            </dependency>
+
+<!--            &lt;!&ndash; 测试依赖 &ndash;&gt;-->
+<!--            <dependency>-->
+<!--                <groupId>org.easymock</groupId>-->
+<!--                <artifactId>easymock</artifactId>-->
+<!--            </dependency>-->
+
+<!--            <dependency>-->
+<!--                <groupId>junit</groupId>-->
+<!--                <artifactId>junit</artifactId>-->
+<!--                <version>${junit.version}</version>-->
+<!--                <scope>test</scope>-->
+<!--            </dependency>-->
+        </dependencies>
+    </dependencyManagement>
+
+
+</project>

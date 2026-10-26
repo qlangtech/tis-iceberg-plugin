@@ -1,0 +1,38 @@
+{
+  "compressionCodec": {
+    "label": "压缩编码",
+    "dftVal": "zstd"
+  },
+  "compressionLevel": {
+    "label": "压缩级别",
+    "placeholder": "例如: 3"
+  },
+  "rowGroupSize": {
+    "label": "Row Group 大小(MB)",
+    "dftVal": 128
+  },
+  "pageSize": {
+    "label": "Page 大小(MB)",
+    "dftVal": 1
+  },
+  "pageRowLimit": {
+    "label": "Page 行数上限",
+    "dftVal": 20000
+  },
+  "dictSize": {
+    "label": "字典大小(MB)",
+    "dftVal": 2
+  },
+  "pageVersion": {
+    "label": "Page 版本",
+    "dftVal": "v1"
+  },
+  "bloomFilterMaxBytes": {
+    "label": "布隆过滤最大字节(MB)",
+    "dftVal": 1
+  },
+  "bloomFilterAdaptive": {
+    "label": "自适应布隆过滤",
+    "dftVal": false
+  }
+}

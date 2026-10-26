@@ -1,0 +1,21 @@
+{
+  "databaseName": {
+    "label": "数据库名",
+    "help": "目标 Iceberg 命名空间（namespace），对应 warehouse 下的 {库名}.db 目录",
+    "placeholder": "例如: iceberg_db"
+  },
+  "cacheEnabled": {
+    "label": "启用 Catalog 缓存",
+    "help": "是否缓存表的元数据信息。单次批处理同步可关闭以减少内存占用",
+    "enum": [
+      {
+        "val": true,
+        "label": "是"
+      },
+      {
+        "val": false,
+        "label": "否"
+      }
+    ]
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "template": {
+    "dftVal": "com.qlangtech.tis.plugin.iceberg.datax.DataxIcebergWriter.getDftTemplate()",
+    "rows": 6
+  },
+  "catalog": {
+    "label": "Catalog",
+    "dftVal": "Hive Metastore Catalog"
+  },
+  "writeMode": {
+    "label": "写入模式",
+    "dftVal": "Append Mode"
+  },
+  "fileFormat": {
+    "label": "文件格式",
+    "dftVal": "Parquet"
+  },
+  "targetFileSizeBytes": {
+    "label": "目标文件大小(字节)",
+    "dftVal": 536870912,
+    "help": "单个数据文件的目标大小（字节），Iceberg 默认 512MB。取值区间 1MB ~ 10GB"
+  },
+  "autoCreateTable": {
+    "label": "自动建表",
+    "subDescEnumFilter": "return com.qlangtech.tis.plugin.iceberg.datax.DataxIcebergWriter.supportedTableCreator(desc);",
+    "dftVal": "on"
+  },
+  "snapshotManagement": {
+    "label": "快照管理",
+    "help": "Iceberg 每次写入都会生成新快照，可按保留数量与天数清理过期快照、合并小 manifest 文件"
+  }
+}
